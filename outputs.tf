@@ -24,20 +24,7 @@ output "vpc_endpoint_ids" {
   value       = module.development_vpc.vpc_endpoint_ids
 }
 
-output "vpc_endpoint_service_names" {
-  description = "List of VPC endpoint service names"
-  value       = module.development_vpc.vpc_endpoint_service_names
-}
 
-output "interface_vpc_endpoints" {
-  description = "Interface VPC endpoint details"
-  value       = module.development_vpc.interface_vpc_endpoints
-}
-
-output "gateway_vpc_endpoints" {
-  description = "Gateway VPC endpoint details"
-  value       = module.development_vpc.gateway_vpc_endpoints
-}
 
 output "vpc_endpoint_security_group_id" {
   description = "Security group ID for VPC endpoints"
