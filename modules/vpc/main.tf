@@ -1,3 +1,11 @@
+locals {
+  # 合并新旧变量，支持向后兼容
+  all_eks_cluster_names = distinct(concat(
+    var.eks_cluster_names,
+    var.eks_cluster_name != "" ? [var.eks_cluster_name] : []
+  ))
+}
+
 # Create VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
@@ -28,12 +36,18 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name                                            = "public-subnet-${count.index + 1}-${var.environment}"
-    Environment                                     = var.environment
-    "kubernetes.io/role/elb"                        = "1"
-    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
-  }
+  tags = merge(
+    {
+      Name        = "public-subnet-${count.index + 1}-${var.environment}"
+      Environment = var.environment
+    },
+    length(local.all_eks_cluster_names) > 0 ? {
+      "kubernetes.io/role/elb" = "1"
+    } : {},
+    { for cluster_name in local.all_eks_cluster_names :
+      "kubernetes.io/cluster/${cluster_name}" => "shared"
+    }
+  )
 }
 
 # Create Private Subnets
@@ -43,12 +57,18 @@ resource "aws_subnet" "private" {
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = var.availability_zones[count.index]
 
-  tags = {
-    Name                                            = "private-subnet-${count.index + 1}-${var.environment}"
-    Environment                                     = var.environment
-    "kubernetes.io/role/internal-elb"               = "1"
-    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
-  }
+  tags = merge(
+    {
+      Name        = "private-subnet-${count.index + 1}-${var.environment}"
+      Environment = var.environment
+    },
+    length(local.all_eks_cluster_names) > 0 ? {
+      "kubernetes.io/role/internal-elb" = "1"
+    } : {},
+    { for cluster_name in local.all_eks_cluster_names :
+      "kubernetes.io/cluster/${cluster_name}" => "shared"
+    }
+  )
 }
 
 # Create Elastic IP for NAT Gateway
@@ -118,9 +138,9 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Create VPC Endpoints for EKS
+# Create VPC Endpoints for EKS (conditional)
 resource "aws_vpc_endpoint" "eks" {
-  for_each = toset([
+  for_each = var.create_vpc_endpoints ? toset([
     "ec2",
     "ecr.api",
     "ecr.dkr",
@@ -129,14 +149,14 @@ resource "aws_vpc_endpoint" "eks" {
     "sts",
     "autoscaling",
     "elasticloadbalancing"
-  ])
+  ]) : toset([])
 
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.region}.${each.key}"
   vpc_endpoint_type   = each.key == "s3" ? "Gateway" : "Interface"
   private_dns_enabled = each.key != "s3"
 
-  security_group_ids = each.key == "s3" ? null : [aws_security_group.vpc_endpoint.id]
+  security_group_ids = each.key == "s3" ? null : [aws_security_group.vpc_endpoint[0].id]
   subnet_ids         = each.key == "s3" ? null : aws_subnet.private[*].id
 
   tags = {
@@ -145,8 +165,10 @@ resource "aws_vpc_endpoint" "eks" {
   }
 }
 
-# Security Group for VPC Endpoints
+# Security Group for VPC Endpoints (conditional)
 resource "aws_security_group" "vpc_endpoint" {
+  count = var.create_vpc_endpoints ? 1 : 0
+
   name        = "vpc-endpoint-sg-${var.environment}"
   description = "Security group for VPC endpoints"
   vpc_id      = aws_vpc.main.id
