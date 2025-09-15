@@ -41,8 +41,8 @@ output "vpc_endpoint_ids" {
 output "security_group_ids" {
   description = "IDs of the security groups"
   value = {
-    bastion       = aws_security_group.bastion.id
-    vpc_endpoint  = try(aws_security_group.vpc_endpoint[0].id, null)
+    bastion      = aws_security_group.bastion.id
+    vpc_endpoint = try(aws_security_group.vpc_endpoint[0].id, null)
   }
 }
 
