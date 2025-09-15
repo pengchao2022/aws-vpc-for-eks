@@ -29,8 +29,10 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "public-subnet-${count.index + 1}-${var.environment}"
-    Environment = var.environment
+    Name                                            = "public-subnet-${count.index + 1}-${var.environment}"
+    Environment                                     = var.environment
+    "kubernetes.io/role/elb"                        = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   }
 }
 
@@ -42,8 +44,10 @@ resource "aws_subnet" "private" {
   availability_zone = var.availability_zones[count.index]
 
   tags = {
-    Name        = "private-subnet-${count.index + 1}-${var.environment}"
-    Environment = var.environment
+    Name                                            = "private-subnet-${count.index + 1}-${var.environment}"
+    Environment                                     = var.environment
+    "kubernetes.io/role/internal-elb"               = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   }
 }
 
@@ -112,6 +116,60 @@ resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
+}
+
+# Create VPC Endpoints for EKS
+resource "aws_vpc_endpoint" "eks" {
+  for_each = toset([
+    "ec2",
+    "ecr.api",
+    "ecr.dkr",
+    "s3",
+    "logs",
+    "sts",
+    "autoscaling",
+    "elasticloadbalancing"
+  ])
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.${each.key}"
+  vpc_endpoint_type   = each.key == "s3" ? "Gateway" : "Interface"
+  private_dns_enabled = each.key != "s3"
+
+  security_group_ids = each.key == "s3" ? null : [aws_security_group.vpc_endpoint.id]
+  subnet_ids         = each.key == "s3" ? null : aws_subnet.private[*].id
+
+  tags = {
+    Name        = "vpc-endpoint-${each.key}-${var.environment}"
+    Environment = var.environment
+  }
+}
+
+# Security Group for VPC Endpoints
+resource "aws_security_group" "vpc_endpoint" {
+  name        = "vpc-endpoint-sg-${var.environment}"
+  description = "Security group for VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "TLS from VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "vpc-endpoint-sg-${var.environment}"
+    Environment = var.environment
+  }
 }
 
 # Create SSH key pair from provided public key
