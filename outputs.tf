@@ -18,12 +18,11 @@ output "private_subnet_ids" {
   value       = module.development_vpc.private_subnet_ids
 }
 
-# VPC Endpoints 输出
+# VPC Endpoints 
 output "vpc_endpoint_ids" {
   description = "Map of VPC endpoint IDs by service name"
   value       = module.development_vpc.vpc_endpoint_ids
 }
-
 
 
 output "vpc_endpoint_security_group_id" {
@@ -31,7 +30,6 @@ output "vpc_endpoint_security_group_id" {
   value       = module.development_vpc.vpc_endpoint_security_group_id
 }
 
-# 其他可选输出
 output "bastion_private_ip" {
   description = "Private IP address of the bastion host"
   value       = module.development_vpc.bastion_host_private_ip
