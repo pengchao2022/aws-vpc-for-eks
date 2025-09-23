@@ -1,6 +1,6 @@
 # AWS-VPC-FOR-EKS
 
-DevOps Tutorials wirtten by Pengchao Ma ,This terraform will create the vpc with public and private subnets for EKS and will also create the vpc endpoint interface and a bastion server with ubuntu installed
+DevOps Tutorials written by Pengchao Ma ,This terraform will create the vpc with public and private subnets for EKS and will also create the vpc endpoint interface and a bastion server with ubuntu installed
 
 ## Features
 
@@ -31,6 +31,6 @@ module "vpc" {
 }
 
 ```
-- write variables.tf and terraform.tfvars for multiple vpcs creation
+- or write variables.tf and terraform.tfvars for multiple vpcs creation
 
 
