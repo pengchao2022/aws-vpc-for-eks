@@ -2,6 +2,8 @@
 
 DevOps Tutorials written by Pengchao Ma ,This terraform will create the vpc with public and private subnets for EKS and will also create the vpc endpoint interface and a bastion server with ubuntu installed
 
+v2
+
 ## Features
 
 - Creates a VPC with specified CIDR block
